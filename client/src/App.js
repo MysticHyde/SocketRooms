@@ -6,6 +6,8 @@ import HomePage from "./pages/Home";
 import LoginPage from "./pages/Login";
 import NotFoundPage from "./pages/NotFound";
 import Profile from "./pages/Profile";
+import 'bootstrap/dist/css/bootstrap.min.css';
+import('./App.scss');
 
 const App = () => {
   return (

@@ -3,6 +3,7 @@ const http = require('http');
 const app = require('./app');
 const { Server } = require('socket.io');
 const pool = require('./utils/db');
+const MyObjectOrSomeCleverName  = require('./routes/socket');
 
 const server = http.createServer(app);
 io = new Server(server, {
@@ -10,6 +11,7 @@ io = new Server(server, {
         origin: `http://localhost:3000`
     },
 });
+var socketRoutes = new MyObjectOrSomeCleverName(io);
 
 
 const PORT = process.env.PORT || 3000;
@@ -51,6 +53,10 @@ io.on("connect_error", (err) => {
 io.on("connection", (socket) => {
     addUser(socket.id)
 
+    socketRoutes.foo('coucou');
+ 
+
+
 
     console.log(`Connexion d'un utilisateur (${socket.id})`);
 
@@ -63,6 +69,10 @@ io.on("connection", (socket) => {
                 socket.join(data.new_room);
 
                 editUser(socket.id, data.username, data.new_room);
+
+                socket.in(data.new_room).emit('from server', 'server message', {
+                    message: `${data.username} vient de rejoindre le salon.`
+                })
 
                 pool.promise().query(`SELECT * FROM messages WHERE room = '${data.new_room}'`)
                     .then(([rows, fields]) => {
@@ -96,8 +106,15 @@ io.on("connection", (socket) => {
     })
 
     socket.on("disconnect", () => {
-        removeUser(socket.id)
-        console.log('User disconnect ' + socket.id);
+        
+        users.map((user) => {
+           console.log(user);
+        });
+
+
+        // socket.in(data.new_room).emit('from server', 'server message', {
+        //     message: `${data.username} vient de quitter le salon.`
+        // })
     })
 
 });

@@ -1,37 +1,17 @@
-import { useState } from "react";
-import { Link, Outlet } from "react-router-dom";
-import { useAuth } from "../context/Auth";
+import { Outlet } from "react-router-dom";
+import Header from "./Header";
+import Container from "react-bootstrap/Container";
+
 const Layout = () => {
 
-
-  const { user, setUser } = useAuth();
-
   return (
+    <>
+      <Header />
 
-    <div>
-      {user ?
-        <>
-          <ul>
-            <li>
-              <Link to="/">Chat</Link>
-            </li>
-            <li>
-              <Link to="/profile">Profile</Link>
-            </li>
-          </ul>
-        </>
-        :
-        <>
-          <ul>
-            <li>
-              <Link to="/login">Login</Link>
-            </li>
-          </ul>
-        </>
-
-      }
-      <Outlet />
-    </div>
+      <Container fluid className="m-0 p-0">
+        <Outlet />
+      </Container>
+    </>
   )
 }
 

@@ -1,6 +1,10 @@
-import { useEffect, useLayoutEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuth } from "../context/Auth";
 import { useSocket } from "../context/Socket";
+import { Container, Col, Row, Form, Button, } from "react-bootstrap";
+import EmojiPicker from 'emoji-picker-react';
+import { useForm } from 'react-hook-form';
+
 
 
 export default function Chat() {
@@ -9,32 +13,27 @@ export default function Chat() {
     const [currentRoom, setCurrentRoom] = useState(null);
     const [roomChoice, setRoomChoice] = useState("Général");
     const [message, setMessage] = useState("");
+    const [emoteMenu, setEmoteMenu] = useState(false);
     const containerRef = useRef(null)
-    // const [isLoading, setisLoading] = useState(false)
+    const textareaRef = useRef(null)
 
+    const [usersMenu, setUsersMenu] = useState(false)
+    const [roomsMenu, setRoomsMenu] = useState(false)
 
-    // useLayoutEffect(() => {
-    //     // if (roomChoice !== currentRoom) {
-    //     socket.emit('from client', 'join room', {
-    //         username: user.username,
-    //         current_room: currentRoom,
-    //         new_room: roomChoice
-    //     })
-    //     setCurrentRoom(roomChoice)
-    //     clearChat()
-    //     // }
-    // }, [])
+    const { register, handleSubmit, watch, formState: { errors } } = useForm();
+    console.log(errors);
+
 
     useEffect(() => {
-        // if (roomChoice !== currentRoom) {
-        socket.emit('from client', 'join room', {
-            username: user.username,
-            current_room: currentRoom,
-            new_room: roomChoice
-        })
-        setCurrentRoom(roomChoice)
-        clearChat()
-        // }
+        if (roomChoice !== currentRoom) {
+            socket.emit('from client', 'join room', {
+                username: user.username,
+                current_room: currentRoom,
+                new_room: roomChoice
+            })
+            setCurrentRoom(roomChoice)
+            clearChat()
+        }
     }, [roomChoice])
 
 
@@ -52,6 +51,11 @@ export default function Chat() {
                         addMessage(element)
                     });
 
+                case 'server message':
+                    addMessage(data)
+                    break;
+                case 'hello':
+                    console.log(data);
                     break;
 
                 default:
@@ -62,6 +66,15 @@ export default function Chat() {
     }, [socket])
 
 
+    function onSubmit(data) {
+        console.log(data);
+
+        socket.emit('from client', 'new message', {
+            username: user.username,
+            message: message,
+            room: currentRoom
+        })
+    }
 
 
     function addMessage(data) {
@@ -79,6 +92,8 @@ export default function Chat() {
                 }
                 messageUsername.innerText = data.username;
                 messageParent.appendChild(messageUsername)
+            } else {
+                messageParent.classList.add('server')
             }
             messageText.innerText = data.message;
             messageParent.appendChild(messageText)
@@ -91,70 +106,125 @@ export default function Chat() {
     }
 
 
-    function handleSubmit(e) {
-        e.preventDefault();
+    // function handleSubmit(e) {
+    //     e.preventDefault();
 
-        socket.emit('from client', 'new message', {
-            username: user.username,
-            message: message,
-            room: currentRoom
-        })
+    //     socket.emit('from client', 'new message', {
+    //         username: user.username,
+    //         message: message,
+    //         room: currentRoom
+    //     })
+    // }
+
+    function handleEmojiCLick(e) {
+        let currentMessage = message;
+        currentMessage = currentMessage + e;
+        setMessage(currentMessage)
 
     }
 
 
     return (
-        <div>
-            <div>
-                <h4>Utilisateurs</h4>
+        <Container fluid className='position-relative'>
+
+            <div className='chat_buttons position-absolute '>
+                <div className='users' style={{ maxWidth: usersMenu ? 700 : 0 }}>
+                    <div className="content" style={{ padding: usersMenu ? "15px 30px 15px 20px" : "15px 0px 0px 20px" }}>
+                        <h4>Utilisateurs</h4>
+                        <ul>
+                            <li>MysticHyde</li>
+                            <li>MysticHyde2</li>
+                            <li>Ali</li>
+                            <li>MysticHyde234</li>
+                        </ul>
+                    </div>
+                    <button className='icon' onClick={() => setUsersMenu(!usersMenu)} >👥</button>
+                </div>
+                <div className='rooms' style={{ maxWidth: roomsMenu ? 700 : 0 }}>
+                    <div className="content" style={{ padding: roomsMenu ? "15px 30px 15px 20px" : "15px 0px 0px 20px" }}>
+                        <h4>Salons</h4>
+                        <Form>
+                            <Form.Group>
+                                <Form.Label>
+                                    Général
+                                    <input
+                                        className='d-none'
+                                        name="form_selection"
+                                        type="radio"
+                                        value="Général"
+                                        checked={currentRoom === 'Général' && true}
+                                        onChange={(e) => setRoomChoice(e.target.value)}
+                                    />
+                                </Form.Label>
+                            </Form.Group>
+
+                            <Form.Group>
+                                <Form.Label>
+                                    Salon 2
+                                    <input
+                                        className='d-none'
+                                        name="form_selection"
+                                        type="radio"
+                                        value="Salon 2"
+                                        checked={currentRoom === "Salon 2" && true}
+                                        onChange={(e) => setRoomChoice(e.target.value)}
+
+                                    />
+                                </Form.Label>
+                            </Form.Group>
+                            <Form.Group>
+                                <Form.Label>
+                                    Salon 3
+                                    <input
+                                        className='d-none'
+                                        name="form_selection"
+                                        type="radio"
+                                        value="Salon 3"
+                                        checked={currentRoom === "Salon 3" && true}
+                                        onChange={(e) => setRoomChoice(e.target.value)}
+                                    />
+                                </Form.Label>
+                            </Form.Group>
+                        </Form>
+                    </div>
+                    <button className='icon' onClick={() => setRoomsMenu(!roomsMenu)}>💬</button>
+                </div>
             </div>
-            <div>
-                <h4>Salons disponibles</h4>
-                <form>
-                    <label>
-                        Général
-                        <input name="form_selection"
-                            type="radio"
-                            value="Général"
-                            checked={currentRoom === 'Général' && true}
-                            onChange={(e) => setRoomChoice(e.target.value)}
+
+            <Row>
+                <Col xs={12} className='fixed-bottom'>
+                    <ul className='chat_messages w-100' ref={containerRef}></ul>
+
+                </Col>
+
+                <Col xs={12} className='chat_form fixed-bottom'>
+                    <Form onSubmit={handleSubmit(onSubmit)}>
+                        <EmojiPicker
+                            width="100%"
+                            height={emoteMenu ? '450px' : '0px'}
+
+                            onEmojiClick={e => handleEmojiCLick(e.emoji)}
                         />
-                    </label>
+                        {/* <textarea
+                            className='w-100'
+                            placeholder='Entrez votre message'
+                            onChange={e => setMessage(e.target.value)}
+                            value={message}
+                            ref={textareaRef}
+                        /> */}
+                        <textarea {...register("message", {
 
-                    <label>
-                        Salon 2
-                        <input name="form_selection"
-                            type="radio"
-                            value="Salon 2"
-                            checked={currentRoom === "Salon 2" && true}
-                            onChange={(e) => setRoomChoice(e.target.value)}
+                        })}
+                            className='w-100'
+                            ref={textareaRef}
+                            value={message}
+                            onChange={e => setMessage(e.target.value)} />
 
-                        />
-                    </label>
-                    <label>
-                        Salon 3
-                        <input name="form_selection"
-                            type="radio"
-                            value="Salon 3"
-                            checked={currentRoom === "Salon 3" && true}
-                            onChange={(e) => setRoomChoice(e.target.value)}
-                        />
-                    </label>
-                </form>
-            </div>
-
-            <ul ref={containerRef}>
-            </ul>
-
-            <form onSubmit={e => handleSubmit(e)}>
-                <textarea placeholder='Entrez votre message'
-                    onChange={e => setMessage(e.target.value)}
-                    value={message}
-                >
-
-                </textarea>
-                <button type="submit">Envoyer</button>
-            </form>
-        </div>
+                        <Button onClick={() => setEmoteMenu(!emoteMenu)}>🙂</Button>
+                        <Button type="submit">Envoyer</Button>
+                    </Form>
+                </Col>
+            </Row>
+        </Container>
     )
 }
