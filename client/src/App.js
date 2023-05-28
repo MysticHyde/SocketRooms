@@ -1,18 +1,29 @@
-import './App.css';
-import io from 'socket.io-client';
-const socket = io.connect('http://localhost:3001')
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-function App() {
-const sendMessage = () => {
-socket.emit()
-}
+import { AuthProvider, RequireAuth } from "./context/Auth";
+import Layout from "./components/Layout";
+import HomePage from "./pages/Home";
+import LoginPage from "./pages/Login";
+import NotFoundPage from "./pages/NotFound";
+import Profile from "./pages/Profile";
 
+const App = () => {
   return (
-    <div className="App">
-    <input placeholder="Message..." type="text" />
-<button onClick={sendMessage}>Envoyer</button>
-    </div>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="*" element={<NotFoundPage />} />
+            <Route element={<RequireAuth />}>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/profile" element={<Profile />} />
+            </Route>
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
-}
+};
 
 export default App;
