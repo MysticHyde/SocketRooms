@@ -33,12 +33,14 @@ const Login = () => {
               id: response.data.userId,
               token: response.data.token,
               username: response.data.username,
+              room: 'Général'
             }
-          ));
-          setUser({
-            id: response.data.userId,
-            token: response.data.token,
-            username: response.data.username,
+            ));
+            setUser({
+              id: response.data.userId,
+              token: response.data.token,
+              username: response.data.username,
+              room: 'Général'
           })
         })
         .catch(function (error) {
@@ -46,13 +48,6 @@ const Login = () => {
         });
     },
   );
-
-  // useEffect(() => {
-  //   if (user) {
-  //     navigate("/");
-  //   }
-  // }, [user])
-
 
   return (
     <>

@@ -3,7 +3,7 @@ const http = require('http');
 const app = require('./app');
 const { Server } = require('socket.io');
 const pool = require('./utils/db');
-const MyObjectOrSomeCleverName  = require('./routes/socket');
+const Routes = require('./routes/socket');
 
 const server = http.createServer(app);
 io = new Server(server, {
@@ -11,7 +11,7 @@ io = new Server(server, {
         origin: `http://localhost:3000`
     },
 });
-var socketRoutes = new MyObjectOrSomeCleverName(io);
+var socketRoutes = new Routes(io);
 
 
 const PORT = process.env.PORT || 3000;
@@ -20,102 +20,98 @@ var users = [];
 app.set('port', PORT);
 
 
-function addUser(userId) {
+function addUser(id, username, token) {
     users.push({
-        userId: userId
+        id: id,
+        username: username,
+        token: token
     });
 }
-function removeUser(userId) {
+function removeUser(id) {
     let newUsers = [];
     users.map((user) => {
-        if (user.userId !== userId) {
+        if (user.id !== id) {
             newUsers.push(user);
         }
         users = newUsers;
     });
 }
-function editUser(userId, room) {
-    let newUsers = [];
-    users.map((user) => {
-        if (user.userId === userId) {
-            newUsers.push({ ...user, room: room });
-        } else {
-            newUsers.push(user);
-        }
-        users = newUsers;
-    });
-}
-
-io.on("connect_error", (err) => {
-    console.log(`connect_error due to ${err.message}`);
-});
+// function editUser(userId, room) {
+//     let newUsers = [];
+//     users.map((user) => {
+//         if (user.userId === userId) {
+//             newUsers.push({ ...user, room: room });
+//         } else {
+//             newUsers.push(user);
+//         }
+//         users = newUsers;
+//     });
+// }
 
 io.on("connection", (socket) => {
-    addUser(socket.id)
-
-    socketRoutes.foo('coucou');
- 
-
-
 
     console.log(`Connexion d'un utilisateur (${socket.id})`);
 
-    socket.on('from client', (path, data) => {
+    addUser(socket.id, socket.handshake.query.x)
 
-        switch (path) {
-
-            case 'join room':
-                socket.leave(data.current_room);
-                socket.join(data.new_room);
-
-                editUser(socket.id, data.username, data.new_room);
-
-                socket.in(data.new_room).emit('from server', 'server message', {
-                    message: `${data.username} vient de rejoindre le salon.`
-                })
-
-                pool.promise().query(`SELECT * FROM messages WHERE room = '${data.new_room}'`)
-                    .then(([rows, fields]) => {
-                        console.log(rows);
-                        io.in(data.new_room).emit('from server', 'room messages', rows)
-                    })
-                    .catch(
-                        console.log('erreur obtention des messages')
-                    )
-                break;
-
-            case 'new message':
-                console.log(data);
-                pool.promise().query('INSERT INTO `messages` (`username`, `message`, room) VALUES (?,?,?)',
-                    [
-                        data.username,
-                        data.message,
-                        data.room
-                    ]
-                )
-                    .then(() => {
-                        io.in(data.room).emit('from server', 'new message', data)
-                    })
-                    .catch(console.log('erreur enregistrement message'))
-                break;
-
-
-            default:
-                break;
-        }
+    socket.on('request', (path, data) => {
+        socketRoutes.Route(socket, path, data);
     })
+        // switch (path) {
 
-    socket.on("disconnect", () => {
-        
-        users.map((user) => {
-           console.log(user);
-        });
+        //     case 'join room':
+        //         socket.leave(data.current_room);
+        //         socket.join(data.new_room);
+
+        //         editUser(socket.id, data.username, data.new_room);
+
+        //         socket.in(data.new_room).emit('from server', 'server message', {
+        //             message: `${data.username} vient de rejoindre le salon.`
+        //         })
+
+        //         pool.promise().query(`SELECT * FROM messages WHERE room = '${data.new_room}'`)
+        //             .then(([rows, fields]) => {
+        //                 console.log(rows);
+        //                 io.in(data.new_room).emit('from server', 'room messages', rows)
+        //             })
+        //             .catch(
+        //                 console.log('erreur obtention des messages')
+        //                 )
+        //                 break;
+
+        // case 'new message':
+        //     console.log(data);
+        //     pool.promise().query('INSERT INTO `messages` (`username`, `message`, room) VALUES (?,?,?)',
+        //         [
+        //             data.username,
+        //             data.message,
+        //             data.room
+        //         ]
+        //     )
+        //         .then(() => {
+        //             io.in(data.room).emit('from server', 'new message', data)
+        //         })
+        //         .catch(console.log('erreur enregistrement message'))
+        //     break;
 
 
-        // socket.in(data.new_room).emit('from server', 'server message', {
-        //     message: `${data.username} vient de quitter le salon.`
-        // })
-    })
+        // default:
+        //     break;
+    // }
+
+socket.on("disconnect", () => {
+
+    removeUser(socket.id)
+
+    // users.map((user) => {
+    //     console.log(user);
+    // });
+
+
+    // socket.in(data.new_room).emit('from server', 'server message', {
+    //     message: `${data.username} vient de quitter le salon.`
+    // })
+})
 
 });
 

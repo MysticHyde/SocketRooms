@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useLayoutEffect } from 'react';
 import { useAuth } from "../context/Auth";
 import { useSocket } from "../context/Socket";
 import { Container, Col, Row, Form, Button, } from "react-bootstrap";
@@ -10,53 +10,81 @@ import { useForm } from 'react-hook-form';
 export default function Chat() {
     const { user, setUser } = useAuth();
     const socket = useSocket();
-    const [currentRoom, setCurrentRoom] = useState(null);
-    const [roomChoice, setRoomChoice] = useState("Général");
+    let storage = localStorage.socket_rooms_user;
+    storage = storage ? JSON.parse(storage) : null;
+
+    const [currentRoom, setCurrentRoom] = useState(storage.room);
+    const [roomChoice, setRoomChoice] = useState(storage.room);
     const [message, setMessage] = useState("");
     const [emoteMenu, setEmoteMenu] = useState(false);
     const containerRef = useRef(null)
     const textareaRef = useRef(null)
 
     const [usersMenu, setUsersMenu] = useState(false)
-    const [roomsMenu, setRoomsMenu] = useState(false)
+    const [roomsMenu, setRoomsMenu] = useState(true)
 
-    const { register, handleSubmit, watch, formState: { errors } } = useForm();
-    console.log(errors);
+    const socketRequest = (url, data) => {
+        if (!data) {
+            data = {};
+        }
+        data = { ...data, token: user.token, username: user.username, room: currentRoom }
+        socket.emit('request', url, data)
+        console.log('new socket request', url, data);
+    }
 
 
     useEffect(() => {
-        if (roomChoice !== currentRoom) {
-            socket.emit('from client', 'join room', {
-                username: user.username,
-                current_room: currentRoom,
-                new_room: roomChoice
-            })
+        if (roomChoice != currentRoom) {
+            console.log(roomChoice);
+            console.log(currentRoom);
+            socketRequest('change room', { new_room: roomChoice })
+            // storage = { ...storage, room: roomChoice }
+            // localStorage.setItem("socket_rooms_user", JSON.stringify(storage))
+            // setUser({ ...user, room: roomChoice })
             setCurrentRoom(roomChoice)
-            clearChat()
         }
     }, [roomChoice])
 
 
+    useEffect(() => {
+        console.log('message', message);
+    }, [message])
+
 
     useEffect(() => {
-        socket.on('from server', (path, data) => {
+        socketRequest('join chat', {})
+    }, [])
+
+
+
+
+    useEffect(() => {
+        socket.on('response', (path, data) => {
             switch (path) {
                 case 'new message':
-                    addMessage(data)
+                    let messageNode = createMessage(data);
+                    if (containerRef.current != null) {
+                        containerRef.current.appendChild(messageNode);
+                    }
                     break;
 
-                case 'room messages':
-                    console.log(data);
-                    data.map(element => {
-                        addMessage(element)
-                    });
+                case 'all messages':
+                    if (containerRef.current != null) {
+                        containerRef.current.innerText = ""
+                        data.map(element => {
+                            let messageNode = createMessage(element)
+                            containerRef.current.appendChild(messageNode);
+                        })
+                    }
+                    break;
 
-                case 'server message':
-                    addMessage(data)
+                case 'join room':
+                    console.log('JOIN');
+                    storage = { ...storage, room: roomChoice }
+                    localStorage.setItem("socket_rooms_user", JSON.stringify(storage))
+                    setUser({ ...user, room: roomChoice })
                     break;
-                case 'hello':
-                    console.log(data);
-                    break;
+
 
                 default:
                     break;
@@ -66,43 +94,33 @@ export default function Chat() {
     }, [socket])
 
 
-    function onSubmit(data) {
-        console.log(data);
-
-        socket.emit('from client', 'new message', {
-            username: user.username,
-            message: message,
-            room: currentRoom
-        })
+    function handleSubmit(e) {
+        e.preventDefault();
+        socketRequest('new message', { message: message })
     }
 
 
-    function addMessage(data) {
-        if (containerRef.current != null) {
-            if (!data.message) {
-                return;
-            }
-            let messageParent = document.createElement("li");
-            let messageText = document.createElement("p");
-            let messageUsername = document.createElement("span");
 
-            if (data.username) {
-                if (data.username === user.username) {
-                    messageParent.classList.add('self')
-                }
-                messageUsername.innerText = data.username;
-                messageParent.appendChild(messageUsername)
-            } else {
-                messageParent.classList.add('server')
-            }
-            messageText.innerText = data.message;
-            messageParent.appendChild(messageText)
-            containerRef.current.appendChild(messageParent);
+    function createMessage(data) {
+        if (!data.message) {
+            return;
         }
-    }
+        let messageParent = document.createElement("li");
+        let messageText = document.createElement("p");
+        let messageUsername = document.createElement("span");
 
-    function clearChat() {
-        containerRef.current.innerText = ''
+        if (data.username) {
+            if (data.username === user.username) {
+                messageParent.classList.add('self')
+            }
+            messageUsername.innerText = data.username;
+            messageParent.appendChild(messageUsername)
+        } else {
+            messageParent.classList.add('server')
+        }
+        messageText.innerText = data.message;
+        messageParent.appendChild(messageText)
+        return messageParent;
     }
 
 
@@ -143,80 +161,66 @@ export default function Chat() {
                 <div className='rooms' style={{ maxWidth: roomsMenu ? 700 : 0 }}>
                     <div className="content" style={{ padding: roomsMenu ? "15px 30px 15px 20px" : "15px 0px 0px 20px" }}>
                         <h4>Salons</h4>
-                        <Form>
-                            <Form.Group>
-                                <Form.Label>
-                                    Général
-                                    <input
-                                        className='d-none'
-                                        name="form_selection"
-                                        type="radio"
-                                        value="Général"
-                                        checked={currentRoom === 'Général' && true}
-                                        onChange={(e) => setRoomChoice(e.target.value)}
-                                    />
-                                </Form.Label>
-                            </Form.Group>
+                        <form>
 
-                            <Form.Group>
-                                <Form.Label>
-                                    Salon 2
-                                    <input
-                                        className='d-none'
-                                        name="form_selection"
-                                        type="radio"
-                                        value="Salon 2"
-                                        checked={currentRoom === "Salon 2" && true}
-                                        onChange={(e) => setRoomChoice(e.target.value)}
+                            <label>
+                                Général
+                                <input
+                                    name="form_selection"
+                                    type="radio"
+                                    value="Général"
+                                    checked={currentRoom === 'Général' && true}
+                                    onChange={(e) => setRoomChoice(e.target.value)}
+                                />
+                            </label>
 
-                                    />
-                                </Form.Label>
-                            </Form.Group>
-                            <Form.Group>
-                                <Form.Label>
-                                    Salon 3
-                                    <input
-                                        className='d-none'
-                                        name="form_selection"
-                                        type="radio"
-                                        value="Salon 3"
-                                        checked={currentRoom === "Salon 3" && true}
-                                        onChange={(e) => setRoomChoice(e.target.value)}
-                                    />
-                                </Form.Label>
-                            </Form.Group>
-                        </Form>
+                            <label>
+                                Salon 2
+                                <input
+                                    name="form_selection"
+                                    type="radio"
+                                    value="Salon 2"
+                                    checked={currentRoom === "Salon 2" && true}
+                                    onChange={(e) => setRoomChoice(e.target.value)}
+
+                                />
+                            </label>
+
+                            <label>
+                                Salon 3
+                                <input
+                                    name="form_selection"
+                                    type="radio"
+                                    value="Salon 3"
+                                    checked={currentRoom === "Salon 3" && true}
+                                    onChange={(e) => setRoomChoice(e.target.value)}
+                                />
+                            </label>
+
+                        </form>
                     </div>
                     <button className='icon' onClick={() => setRoomsMenu(!roomsMenu)}>💬</button>
                 </div>
             </div>
 
             <Row>
-                <Col xs={12} className='fixed-bottom'>
+                <Col xs={12}>
                     <ul className='chat_messages w-100' ref={containerRef}></ul>
 
                 </Col>
 
                 <Col xs={12} className='chat_form fixed-bottom'>
-                    <Form onSubmit={handleSubmit(onSubmit)}>
+                    <Form onSubmit={e => handleSubmit(e)}>
                         <EmojiPicker
                             width="100%"
                             height={emoteMenu ? '450px' : '0px'}
 
                             onEmojiClick={e => handleEmojiCLick(e.emoji)}
                         />
-                        {/* <textarea
+                        <textarea
                             className='w-100'
+                            ref={textareaRef}
                             placeholder='Entrez votre message'
-                            onChange={e => setMessage(e.target.value)}
-                            value={message}
-                            ref={textareaRef}
-                        /> */}
-                        <textarea {...register("message", {
-
-                        })}
-                            className='w-100'
-                            ref={textareaRef}
                             value={message}
                             onChange={e => setMessage(e.target.value)} />
 
@@ -225,6 +229,7 @@ export default function Chat() {
                     </Form>
                 </Col>
             </Row>
+
         </Container>
     )
 }
